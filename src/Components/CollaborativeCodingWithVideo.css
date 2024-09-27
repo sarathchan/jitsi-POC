@@ -1,0 +1,49 @@
+.collaborative-coding {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.video-call {
+    flex: 1;
+    padding: 10px;
+    position: relative;
+}
+
+.jitsi-container {
+    height: 400px;
+    width: 100%;
+    border: 1px solid #ccc;
+}
+
+.editor-toggle {
+    padding: 10px;
+}
+
+button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+.code-editor {
+    flex: 1;
+    padding: 10px;
+}
+
+h2, h3 {
+    margin: 10px 0;
+}
