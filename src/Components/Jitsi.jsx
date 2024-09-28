@@ -1,11 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
+import { python } from '@codemirror/lang-python';
+import { java } from '@codemirror/lang-java';
 import { oneDark } from '@codemirror/theme-one-dark';
-import './CollaborativeCodingWithVideo.css'; // Import your CSS file for styles
+import './CollaborativeCodingWithVideo.css';
 
 const CollaborativeCodingWithVideo = ({ roomName, displayName, isInterviewer }) => {
     const jitsiContainerRef = useRef(null);
+    const editorRef = useRef(null);
     const [showEditor, setShowEditor] = useState(false);
     const [joined, setJoined] = useState(false);
     const [code, setCode] = useState('// Write your code here...');
@@ -16,21 +19,20 @@ const CollaborativeCodingWithVideo = ({ roomName, displayName, isInterviewer }) 
 
     useEffect(() => {
         ws.current = new WebSocket('ws://localhost:8090'); // WebSocket URL
-        ws.current.onopen = () => console.log('COnnected Chan');
+        ws.current.onopen = () => console.log('Connected to channel');
 
         ws.current.onmessage = (message) => {
             const receivedData = JSON.parse(message.data);
             if (receivedData.roomName === roomName) {
-             
                 setCode(receivedData.code);
             }
         };
 
         return () => {
             ws.current.close();
+
         };
     }, [roomName]);
-    console.log(roomName,"channn",code)
 
     useEffect(() => {
         const loadJitsiScript = () => {
@@ -55,8 +57,8 @@ const CollaborativeCodingWithVideo = ({ roomName, displayName, isInterviewer }) 
                     startWithVideoMuted: true,
                 },
                 interfaceConfigOverwrite: {
-                    filmStripOnly: true,
-                }
+                    filmStripOnly: false,
+                },
             };
 
             const apiInstance = new window.JitsiMeetExternalAPI(domain, options);
@@ -90,33 +92,45 @@ const CollaborativeCodingWithVideo = ({ roomName, displayName, isInterviewer }) 
     const executeCode = async () => {
         let result;
         try {
-            if (language === 'javascript') {
-                result = eval(code); // Evaluate JavaScript code
-            } else {
-                // Example for Python, C, and Java execution using an external API
-                const response = await fetch(`YOUR_API_ENDPOINT`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ code, language }),
-                });
+            // Sending code to the backend API for execution
+            const response = await fetch(`http://localhost:8080/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ code, language }),
+            });
 
-                const data = await response.json();
-                result = data.output || 'Error: ' + data.error;
-            }
+            const data = await response.json();
+            result = data.output || 'Error: ' + data.error;
         } catch (err) {
             result = 'Error: ' + err.message;
         }
         setOutput(result.toString());
     };
 
+    // Resizing the editor
+    const startResize = (e) => {
+        const editorContainer = editorRef.current;
+        const startX = e.clientX;
+        const startWidth = editorContainer.offsetWidth;
+
+        const doDrag = (e) => {
+            editorContainer.style.width = `${startWidth + e.clientX - startX}px`;
+        };
+
+        const stopResize = () => {
+            document.removeEventListener('mousemove', doDrag);
+            document.removeEventListener('mouseup', stopResize);
+        };
+
+        document.addEventListener('mousemove', doDrag);
+        document.addEventListener('mouseup', stopResize);
+    };
+
     return (
         <div className="collaborative-coding">
-            <div className="video-call">
-                <h2>Video Call</h2>
-                <div ref={jitsiContainerRef} className="jitsi-container" />
-            </div>
+            <div ref={jitsiContainerRef} className={`jitsi-container ${showEditor ? 'editor-opened' : ''}`} />
 
             {joined && (
                 <div className="editor-toggle">
@@ -127,7 +141,7 @@ const CollaborativeCodingWithVideo = ({ roomName, displayName, isInterviewer }) 
             )}
 
             {showEditor && (
-                <div className="code-editor">
+                <div ref={editorRef} className="code-editor-container">
                     <h2>{isInterviewer ? 'Viewing Code' : 'Write and Execute Code'}</h2>
                     <select value={language} onChange={(e) => setLanguage(e.target.value)}>
                         <option value="javascript">JavaScript</option>
@@ -140,7 +154,12 @@ const CollaborativeCodingWithVideo = ({ roomName, displayName, isInterviewer }) 
                         value={code}
                         height="400px"
                         theme={oneDark}
-                        extensions={[javascript()]}
+                        extensions={[
+                            language === 'javascript' ? javascript() :
+                            language === 'python' ? python() :
+                            language === 'java' ? java() :
+                            ''
+                        ]}
                         onChange={!isInterviewer ? handleCodeChange : undefined}
                         editable={!isInterviewer}
                     />
@@ -155,6 +174,8 @@ const CollaborativeCodingWithVideo = ({ roomName, displayName, isInterviewer }) 
                         <h3>Output:</h3>
                         <pre>{output}</pre>
                     </div>
+
+                    <div className="resize-handle" onMouseDown={startResize} />
                 </div>
             )}
         </div>
